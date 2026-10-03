@@ -11,6 +11,14 @@ Baixe o instalador Windows e o APK em [Releases](https://github.com/JosephDavid2
 - Windows x64: `DropLocal-Setup-0.5.1.exe`, com runtime .NET Desktop privado, atalhos e desinstalador por usuário. Requer .NET Framework 4.x para o assistente. Instalador sem certificado Authenticode.
 - Android 8 ou superior: `DropLocal-Android-0.5.1.apk`. Instale sobre a versão anterior para preservar a atualização com a mesma assinatura.
 
+## Interface
+
+![Windows: enviar](docs/images/windows-enviar.png)
+
+![Windows: receber e QR](docs/images/windows-receber.png)
+
+![Instalador Windows](docs/images/instalador.png)
+
 ## Como funciona
 
 Na aba Receber, escolha a pasta e inicie o receptor. No outro dispositivo, selecione arquivos e informe IP/código ou use o QR do Windows. Aceite o pedido no destino. Mudar de aba preserva os dados e o receptor ativo.
@@ -40,3 +48,4 @@ dotnet run --project tests/ProtocolTests.csproj -c Release
 Os testes cobrem autenticação, aceitação/recusa, cancelamento, desconexão, pareamento, arquivos binários, Unicode e vazios. O teste integrado verifica uma única janela, preservação das abas e transferência em loopback. O usuário confirmou fisicamente o QR na 0.4.1 e todos os recursos da 0.5. A 0.5.1 adiciona autoria e empacotamento; o guia distingue verificações automatizadas de testes físicos.
 
 Histórico da correção do QR: [QR 0.4.1](docs/historico/QR-0.4.1.md).
+
