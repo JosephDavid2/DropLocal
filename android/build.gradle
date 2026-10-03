@@ -1,0 +1,7 @@
+plugins { id 'com.android.application' version '8.9.1' apply false }
+
+allprojects {
+    if (providers.gradleProperty('dropLocalBuildRoot').isPresent()) {
+        layout.buildDirectory.set(file(providers.gradleProperty('dropLocalBuildRoot').get() + '/' + project.name))
+    }
+}
