@@ -7,7 +7,9 @@ internal static class Program
     private static int Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
-        using var form = new MainForm();
+        int tutorialCheck=Array.IndexOf(args,"--verify-tutorial");
+        using var form = new MainForm(args.Length==0,tutorialCheck>=0&&tutorialCheck+1<args.Length?Path.Combine(Path.GetFullPath(args[tutorialCheck+1]),"preferences"):null);
+        if(tutorialCheck>=0&&tutorialCheck+1<args.Length){string directory=Path.GetFullPath(args[tutorialCheck+1]);Directory.CreateDirectory(directory);int result=0;form.Location=new Point(-30000,-30000);form.Shown+=async(_,_)=>{try{await form.VerifyTutorial(directory);File.WriteAllText(Path.Combine(directory,"result.txt"),"PASS gated real actions; receiver activation; demonstration sends no files; completion/skip persisted; help reopens.");}catch(Exception e){result=1;File.WriteAllText(Path.Combine(directory,"result.txt"),e.ToString());}finally{form.Close();}};Application.Run(form);return result;}
         int navigationCheck=Array.IndexOf(args,"--verify-navigation");
         if(navigationCheck>=0 && navigationCheck+1<args.Length)
         {
@@ -22,6 +24,7 @@ internal static class Program
             _ = form.Handle;
             return 0;
         }
+        int tourPreview=Array.IndexOf(args,"--render-tutorial-preview");if(tourPreview>=0&&tourPreview+1<args.Length){form.StartPosition=FormStartPosition.Manual;form.Location=new Point(-30000,-30000);form.Show();form.PreviewTutorial();Application.DoEvents();using var rendered=new Bitmap(form.Width,form.Height);form.DrawToBitmap(rendered,new Rectangle(Point.Empty,form.Size));rendered.Save(Path.GetFullPath(args[tourPreview+1]));form.Close();return 0;}
         int receiverPreview=Array.IndexOf(args,"--render-receiver-preview");
         if(receiverPreview>=0 && receiverPreview+1<args.Length){form.ShowSection(true);form.DemoReceiverPreview();form.StartPosition=FormStartPosition.Manual;form.Location=new Point(-30000,-30000);form.Show();Application.DoEvents();using var rendered=new Bitmap(form.Width,form.Height);form.DrawToBitmap(rendered,new Rectangle(Point.Empty,form.Size));rendered.Save(Path.GetFullPath(args[receiverPreview+1]));form.Close();return 0;}
         int preview = Array.IndexOf(args, "--render-preview");
@@ -29,7 +32,7 @@ internal static class Program
         {
             form.AddFiles(args.Skip(preview + 2).ToArray());
             form.StartPosition = FormStartPosition.Manual; form.Location = new Point(-30000, -30000);
-            form.Show(); Application.DoEvents();
+            form.Show();form.ShowSection(false);Application.DoEvents();
             using var full = new Bitmap(form.Width, form.Height);
             form.DrawToBitmap(full, new Rectangle(Point.Empty, form.Size));
             full.Save(Path.GetFullPath(args[preview + 1]));
@@ -147,9 +150,9 @@ internal sealed class WifiBadge : Control
     }
 }
 
-internal sealed class MainForm : Form
+internal sealed partial class MainForm : Form
 {
-    readonly TextBox address = new() { PlaceholderText = "192.168.1.20", AccessibleName = "IP do Android" };
+    readonly TextBox address = new() { PlaceholderText = "192.168.1.20", AccessibleName = "IP do outro aparelho" };
     readonly TextBox token = new() { PlaceholderText = "Código de oito dígitos", AccessibleName = "Código de sessão", MaxLength = 8 };
     readonly ListBox list = new() { DrawMode = DrawMode.OwnerDrawFixed, ItemHeight = 50, BorderStyle = BorderStyle.None, BackColor = Palette.Background, ForeColor = Palette.Text, IntegralHeight = false, AccessibleName = "Arquivos selecionados" };
     readonly ActionButton send = new() { Text = "↑   Enviar arquivos", Primary = true, Dock = DockStyle.Fill };
@@ -157,18 +160,19 @@ internal sealed class MainForm : Form
     readonly ActionButton choose = new() { Text = "Selecionar arquivos", Width = 200 };
     readonly ActionButton clear = new() { Text = "Limpar lista", Width = 110, Height = 30 };
     readonly TransferProgress progress = new() { Dock = DockStyle.Fill, Visible = false };
-    readonly Label status = Label("Escolha os arquivos e informe os dados do Android.", 9, Palette.Muted);
+    readonly Label status = Label("Pareie na aba Conexão antes de enviar arquivos.", 9, Palette.Muted);
     readonly Label summary = Label("Nenhum arquivo selecionado", 10, Palette.Muted);
-    readonly Label connection = Label("Use os dados exibidos no aplicativo Android", 9, Palette.Muted);
+    readonly Label connection = Label("Pareie uma vez para enviar e receber", 9, Palette.Muted);
     CancellationTokenSource? active;
     readonly ReceiveView receiveView;
     readonly Panel pages = new() { Dock = DockStyle.Fill, BackColor = Palette.Background, Margin = Padding.Empty };
-    readonly ActionButton sendTab = new() { Text = "↑   Enviar", Dock = DockStyle.Fill, Primary = true };
-    readonly ActionButton receiveTab = new() { Text = "↓   Receber / QR", Dock = DockStyle.Fill };
+    readonly ActionButton sendTab = new() { Text = "Arquivos", Dock = DockStyle.Fill, Primary = true };
+    readonly ActionButton receiveTab = new() { Text = "Conexão / QR", Dock = DockStyle.Fill };
     Control sendPage = null!;
     [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
-    public MainForm()
+    public MainForm(bool autoTutorial=true,string? tutorialDirectory=null)
     {
+        this.tutorialDirectory=tutorialDirectory??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"DropLocal");
         Text = "Drop Local"; Icon = AppIdentity.Icon; BackColor = Palette.Background; ForeColor = Palette.Text; Font = new Font("Segoe UI", 10);
         ClientSize = new Size(740, 820); MinimumSize = new Size(720, 790); StartPosition = FormStartPosition.CenterScreen;
         AutoScaleMode = AutoScaleMode.Dpi;
@@ -177,29 +181,30 @@ internal sealed class MainForm : Form
         var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = Padding.Empty, Margin = Padding.Empty, ColumnCount = 1, RowCount = 7, BackColor = Palette.Background };
         sendPage=root;
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        foreach (var height in new float[] { 0, 160, 152, 36 }) root.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
+        foreach (var height in new float[] { 0, 0, 152, 36 }) root.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); root.RowStyles.Add(new RowStyle(SizeType.Absolute, 54)); root.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
         shell.Controls.Add(pages,0,2);pages.Controls.Add(root);
-        receiveView=new ReceiveView((ip,code)=>{address.Text=ip.ToString();token.Text=code;connection.Text="Pareado • pronto para enviar um pedido";}) { Dock=DockStyle.Fill,Visible=false };
-        pages.Controls.Add(receiveView);
-        var navigation=new TableLayoutPanel { Dock=DockStyle.Fill,Margin=new Padding(0,0,0,12),ColumnCount=2,RowCount=1,BackColor=Palette.Background };
-        navigation.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));navigation.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));navigation.RowStyles.Add(new RowStyle(SizeType.Percent,100));
-        sendTab.Margin=new Padding(0,0,6,0);receiveTab.Margin=new Padding(6,0,0,0);navigation.Controls.Add(sendTab,0,0);navigation.Controls.Add(receiveTab,1,0);shell.Controls.Add(navigation,0,1);
-        sendTab.Click+=(_,_)=>ShowSection(false);receiveTab.Click+=(_,_)=>ShowSection(true);
-        receiveView.ListeningChanged+=listening=>{receiveTab.Text=listening?"↓   Receber / QR • ativo":"↓   Receber / QR";receiveTab.Invalidate();};
         var header = new Panel { Dock = DockStyle.Fill, Margin = Padding.Empty, BackColor = Palette.Background };
         header.Controls.Add(new WifiBadge { Location = new Point(0, 0) });
         header.Controls.Add(Label("Drop Local", 22, Palette.Text, true, new Point(70, -2)));
-        header.Controls.Add(Label("Seus arquivos, pela sua rede · 0.5.1", 10, Palette.Muted, false, new Point(72, 38)));
-        var credit=Label("by Joseph David",9,Palette.Muted);credit.Anchor=AnchorStyles.Top|AnchorStyles.Right;header.Controls.Add(credit);header.Resize+=(_,_)=>credit.Location=new Point(header.ClientSize.Width-credit.Width,16);shell.Controls.Add(header, 0, 0);
+        header.Controls.Add(Label("Seus arquivos, pela sua rede · 0.6.0", 10, Palette.Muted, false, new Point(72, 38)));
+        var credit=Label("by Joseph David",9,Palette.Muted);credit.Anchor=AnchorStyles.Top|AnchorStyles.Right;header.Controls.Add(credit);header.Resize+=(_,_)=>credit.Location=new Point(header.ClientSize.Width-credit.Width,16);shell.Controls.Add(header, 0, 0);var help=new LinkLabel{Text="Como usar",AutoSize=true,LinkColor=Palette.Accent,Location=new Point(580,42),AccessibleName="Como usar: tutorial"};help.Click+=(_,_)=>BeginTutorial();header.Controls.Add(help);
         var connect = new Card { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, 12) };
-        var connectContent = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 4, BackColor = Palette.Panel };
+        var connectContent = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 5, BackColor = Palette.Panel };
         connectContent.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50)); connectContent.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        connectContent.RowStyles.Add(new RowStyle(SizeType.Absolute, 25)); connectContent.RowStyles.Add(new RowStyle(SizeType.Absolute, 25)); connectContent.RowStyles.Add(new RowStyle(SizeType.Absolute, 22)); connectContent.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        var title = Label("Conectar ao celular", 12, Palette.Text, true); connectContent.Controls.Add(title, 0, 0); connectContent.SetColumnSpan(title, 2);
+        connectContent.RowStyles.Add(new RowStyle(SizeType.Absolute, 25)); connectContent.RowStyles.Add(new RowStyle(SizeType.Absolute, 25)); connectContent.RowStyles.Add(new RowStyle(SizeType.Absolute, 22)); connectContent.RowStyles.Add(new RowStyle(SizeType.Absolute,40));connectContent.RowStyles.Add(new RowStyle(SizeType.Absolute,40));
+        var title = Label("Parear outro aparelho", 12, Palette.Text, true); connectContent.Controls.Add(title, 0, 0); connectContent.SetColumnSpan(title, 2);
         connection.Dock = DockStyle.Fill; connectContent.Controls.Add(connection, 0, 1); connectContent.SetColumnSpan(connection, 2);
-        connectContent.Controls.Add(Label("IP do Android", 9, Palette.Text), 0, 2); connectContent.Controls.Add(Label("Código de sessão", 9, Palette.Text), 1, 2);
-        connectContent.Controls.Add(Field(address), 0, 3); connectContent.Controls.Add(Field(token), 1, 3); connect.Controls.Add(connectContent); root.Controls.Add(connect, 0, 1);
+        connectContent.Controls.Add(Label("IP do outro aparelho", 9, Palette.Text), 0, 2); connectContent.Controls.Add(Label("Código de sessão", 9, Palette.Text), 1, 2);
+        connectContent.Controls.Add(Field(address), 0, 3); connectContent.Controls.Add(Field(token), 1, 3); connect.Controls.Add(connectContent); 
+        portChoice=new ComboBox{Dock=DockStyle.Fill,DropDownStyle=ComboBoxStyle.DropDownList,BackColor=Palette.Field,ForeColor=Palette.Text};portChoice.Items.AddRange(new object[]{"Windows","Android"});portChoice.SelectedIndex=0;
+        pairButton=new ActionButton{Text="Parear",Primary=true,Dock=DockStyle.Fill};connectContent.Controls.Add(portChoice,0,4);connectContent.Controls.Add(pairButton,1,4);
+        receiveView=new ReceiveView((ip,code)=>RefreshConnection(),connect){Dock=DockStyle.Fill,Visible=false};pages.Controls.Add(receiveView);
+        var navigation=new TableLayoutPanel{Dock=DockStyle.Fill,Margin=new Padding(0,0,0,12),ColumnCount=2,RowCount=1,BackColor=Palette.Background};navigation.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));navigation.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));navigation.Controls.Add(receiveTab,0,0);navigation.Controls.Add(sendTab,1,0);shell.Controls.Add(navigation,0,1);
+        sendTab.Click+=(_,_)=>{ShowSection(false);Guide("files-tab");};receiveTab.Click+=(_,_)=>{ShowSection(true);Guide("connection");};receiveView.ListeningChanged+=listening=>{RefreshConnection();};receiveView.GuideAction=Guide;
+        pairButton.Click+=async(_,_)=>{if(receiveView.Pairing.Peer!=null){receiveView.Pairing.Clear();RefreshConnection();return;}if(!receiveView.IsListening){connection.Text="Ative sua sessão primeiro.";return;}if(!System.Net.IPAddress.TryParse(address.Text.Trim(),out var peerIp)||token.Text.Length!=8){connection.Text="Informe IP e código de 8 dígitos.";return;}pairButton.Enabled=false;using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(130));try{await receiveView.Pairing.ConnectAsync(peerIp,portChoice.SelectedIndex==0?45833:45832,token.Text,45833,deadline.Token);RefreshConnection();Guide("pair");}catch(Exception e){connection.Text="Pareamento: "+e.Message;}finally{pairButton.Enabled=true;}};
+        var sessionLine=Label("Sessão não pareada · cada envio exige aceitação",9,Palette.Muted,false,new Point(72,58));header.Controls.Add(sessionLine);pairingStatus=sessionLine;
+        sessionTimer=new System.Windows.Forms.Timer{Interval=1000};sessionTimer.Tick+=(_,_)=>RefreshConnection();sessionTimer.Start();
         var drop = new Card { Dock = DockStyle.Fill, Dashed = true, Margin = new Padding(0, 0, 0, 8) };
         var dropContent = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1, BackColor = Palette.Panel };
         dropContent.RowStyles.Add(new RowStyle(SizeType.Absolute, 26)); dropContent.RowStyles.Add(new RowStyle(SizeType.Absolute, 24)); dropContent.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -219,8 +224,8 @@ internal sealed class MainForm : Form
         list.MouseDown += (_, e) => { int index = list.IndexFromPoint(e.Location); if (active == null && index >= 0 && e.X > list.ClientSize.Width - 36) { list.Items.RemoveAt(index); UpdateSummary(); } };
         list.KeyDown += (_, e) => { if (e.KeyCode == Keys.Delete && active == null && list.SelectedIndex >= 0) { list.Items.RemoveAt(list.SelectedIndex); UpdateSummary(); } };
         RegisterDrop(this); RegisterDrop(root); RegisterDrop(drop); RegisterDrop(dropContent); RegisterDrop(dragTitle); RegisterDrop(hint); RegisterDrop(centered); RegisterDrop(list);
-        cancel.Click += (_, _) => active?.Cancel(); FormClosing += (_, _) => {active?.Cancel();receiveView.Stop();}; send.Click += async (_, _) => await Send();
-        Shown += (_, _) => { int dark = 1; DwmSetWindowAttribute(Handle, 20, ref dark, sizeof(int)); };
+        cancel.Click += (_, _) => active?.Cancel(); FormClosing += (_, _) => {active?.Cancel();receiveView.Stop();sessionTimer.Stop();}; send.Click += async (_, _) => await Send();
+        Shown += (_, _) => { ShowSection(true);if(autoTutorial&&!File.Exists(TutorialPath))BeginTutorial();int dark = 1; DwmSetWindowAttribute(Handle, 20, ref dark, sizeof(int)); };
     }
     public void ShowSection(bool receiving)
     {
@@ -252,10 +257,10 @@ internal sealed class MainForm : Form
     void RegisterDrop(Control control)
     {
         control.AllowDrop = true;
-        control.DragEnter += (_, e) => e.Effect = active == null && e.Data?.GetDataPresent(DataFormats.FileDrop) == true ? DragDropEffects.Copy : DragDropEffects.None;
+        control.DragEnter += (_, e) => e.Effect = (guideStep<0||guideStep==5)&&active == null && e.Data?.GetDataPresent(DataFormats.FileDrop) == true ? DragDropEffects.Copy : DragDropEffects.None;
         control.DragDrop += (_, e) => { if (e.Data?.GetData(DataFormats.FileDrop) is string[] paths) AddFiles(paths); };
     }
-    public void AddFiles(string[] paths) { if (active != null) return; foreach (var path in paths) if (File.Exists(path) && !list.Items.Contains(path)) list.Items.Add(path); UpdateSummary(); }
+    public void AddFiles(string[] paths) { if (active != null||(guideStep>=0&&guideStep!=5)) return; foreach (var path in paths) if (File.Exists(path) && !list.Items.Contains(path)) list.Items.Add(path); UpdateSummary();if(list.Items.Count>0)Guide("select"); }
     void UpdateSummary()
     {
         long total = list.Items.Cast<string>().Sum(p => { try { return new FileInfo(p).Length; } catch { return 0L; } });
@@ -280,22 +285,28 @@ internal sealed class MainForm : Form
     }
     async Task Send()
     {
-        if (list.Items.Count == 0 || !System.Net.IPAddress.TryParse(address.Text.Trim(), out var ip) || token.Text.Trim().Length == 0) { status.Text = "Selecione arquivos, informe um IP válido e o código do Android."; return; }
+        var peer=receiveView.Pairing.Peer;if(list.Items.Count==0||peer==null){status.Text="Pareie o aparelho na aba Conexão e selecione arquivos.";return;}Guide("send");
         active = new(); var ct = active.Token; send.Enabled = choose.Enabled = clear.Enabled = address.Enabled = token.Enabled = false; cancel.Enabled = true; progress.Value = 0; progress.Visible = false;
         try
         {
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct); deadline.CancelAfter(TimeSpan.FromMinutes(5));
-            await LocalTransfer.SendAsync(ip, token.Text.Trim(), list.Items.Cast<string>().ToArray(),
+            await LocalTransfer.SendAsync(peer.Address, peer.SendToken, list.Items.Cast<string>().ToArray(),
                 (done,total,name) => { if (IsDisposed) return; connection.Text = "Transferindo para o Android"; progress.Visible = true; progress.Value = total == 0 ? 100 : (int)(done * 100.0 / total); status.Text = $"Enviando • {progress.Value}%   {Palette.Size(done)} de {Palette.Size(total)}\n{name}"; },
-                text => { if (!IsDisposed) { status.Text = text; connection.Text = text.StartsWith("Aguardando") ? "Pedido enviado • confirme no Android" : "Conectando ao Android…"; } }, deadline.Token);
-            if (!IsDisposed) { progress.Visible = true; progress.Value = 100; status.Text = "Concluído • arquivos salvos no Android."; connection.Text = "Envio concluído • conexão encerrada"; }
+                text => { if (!IsDisposed) { status.Text = text; connection.Text = text.StartsWith("Aguardando") ? "Pedido enviado • confirme no aparelho" : "Conectando ao aparelho…"; } }, deadline.Token,peer.Port,2);
+            if (!IsDisposed) { progress.Visible = true; progress.Value = 100; status.Text = "Concluído • arquivos salvos no aparelho."; connection.Text = "Envio concluído • sessão pareada disponível"; }
         }
         catch (OperationCanceledException) { if (!IsDisposed) status.Text = ct.IsCancellationRequested ? "Envio cancelado." : "Tempo limite atingido. Envie lotes menores."; }
-        catch (Exception ex) { if (!IsDisposed) status.Text = "Falha: " + ex.Message; }
+        catch (Exception ex) { if (!IsDisposed) status.Text = "Falha: " + ex.Message+" Reabra o outro aparelho e tente novamente. Se ele reiniciou, desconecte e pareie de novo."; }
         finally
         {
             active.Dispose(); active = null;
-            if (!IsDisposed) { send.Enabled = choose.Enabled = address.Enabled = token.Enabled = true; cancel.Enabled = false; if (progress.Value != 100) connection.Text = "Informe os dados exibidos no Android para tentar novamente"; UpdateSummary(); list.Invalidate(); }
+            if (!IsDisposed) { send.Enabled = choose.Enabled = address.Enabled = token.Enabled = true; cancel.Enabled = false; if (progress.Value != 100) connection.Text = "Informe os dados exibidos no aparelho para tentar novamente"; UpdateSummary(); list.Invalidate(); }
         }
     }
 }
+
+
+
+
+
+
