@@ -28,3 +28,4 @@ residuos-para-excluir/
 *.p12
 .env
 .env.*
+docs/images/github-release.jpg

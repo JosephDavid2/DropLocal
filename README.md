@@ -1,51 +1,30 @@
 # Drop Local
 
-**by Joseph David** · Windows e Android · versão 0.5.1
+**by Joseph David** · Windows e Android · versão 0.8.2
 
-Transfira arquivos diretamente entre PC e celular na mesma rede local. Aplicativos nativos com tema escuro, abas Enviar / Receber, progresso, cancelamento e confirmação de cada pedido. O Windows oferece QR para pareamento; a entrada manual continua disponível.
+Abra, veja os aparelhos da mesma rede e envie. No Windows, arraste arquivos para o destinatário ou clique nele para selecionar. No Android, toque no aparelho e escolha os arquivos. O pedido aparece automaticamente no destino: basta aceitar ou recusar. Aplicativos nativos, sem navegador, servidor externo, tutorial ou tour.
 
-## Download e instalação
+[Baixar Windows x64 (MSI)](https://github.com/JosephDavid2/DropLocal/releases/latest/download/DropLocal-Setup.msi) · [Baixar Android](https://github.com/JosephDavid2/DropLocal/releases/latest/download/DropLocal-Android.apk) · [Releases](https://github.com/JosephDavid2/DropLocal/releases)
 
-Baixe o instalador Windows e o APK em [Releases](https://github.com/JosephDavid2/DropLocal/releases). Consulte [o guia da versão 0.5.1](USAR-0.5.1.md).
+Windows usa Downloads/DropLocal e inicia a recepção ao abrir. Android pede a pasta uma vez e lembra a autorização quando o provedor permite. Mantenha o app aberto no Android. Configuração e conexão manual ficam fora do fluxo principal. Cada lote exige uma aceitação, independentemente do aparelho selecionado no destino.
 
-- Windows x64: `DropLocal-Setup-0.5.1.exe`, com runtime .NET Desktop privado, atalhos e desinstalador por usuário. Requer .NET Framework 4.x para o assistente. Instalador sem certificado Authenticode.
-- Android 8 ou superior: `DropLocal-Android-0.5.1.apk`. Instale sobre a versão anterior para preservar a atualização com a mesma assinatura.
+![Tela Windows com aparelhos de demonstração](docs/images/windows-receber.png)
 
-## Interface
+O MSI usa Windows Installer para instalar, atualizar e desinstalar, com runtime privado e atalhos no menu Iniciar. Não inclui desinstalador personalizado. Arquivos recebidos e dados pessoais são preservados. Consulte [guia de uso](USAR-0.8.2.md), [atualização](ATUALIZAR.md) e [validação da versão](VALIDACAO-0.8.2.md).
 
-![Windows: enviar](docs/images/windows-enviar.png)
+## Compilar
 
-![Windows: receber e QR](docs/images/windows-receber.png)
-
-![Instalador Windows](docs/images/instalador.png)
-
-## Como funciona
-
-Na aba Receber, escolha a pasta e inicie o receptor. No outro dispositivo, selecione arquivos e informe IP/código ou use o QR do Windows. Aceite o pedido no destino. Mudar de aba preserva os dados e o receptor ativo.
-
-TCP 45832 no Android e 45833 no Windows. Sem servidor externo e sem TLS; use uma rede confiável. Limite de 1000 arquivos, buffers de 64 KiB, sem retomada. O Android prepara cópias temporárias e deve permanecer em primeiro plano para aceitar pedidos.
-
-## Código e compilação
-
-`windows/` contém o aplicativo WinForms (.NET 10); `android/` contém o aplicativo Java; `installer/` contém assistente, launcher e desinstalador. `tests/` cobre transporte e leitura de QR. `assets/` contém a identidade visual.
+Windows requer .NET SDK 10 e WiX 6.0.2 do NuGet oficial:
 
 ```powershell
-dotnet publish windows/DropLocal.csproj -c Release --self-contained false -o dist/windows
+dotnet tool install wix --version 6.0.2 --tool-path .installer-work/wix --allow-roll-forward
 ./Build-Windows-Installer.ps1
 ./Build-Android.ps1 -Offline
-```
-
-O instalador usa o runtime 10.0.12 instalado no caminho informado em `-DotnetRoot`, além do compilador .NET Framework do Windows. Android usa JDK 17, Gradle 8.11.1 e SDK/Build Tools 35; consulte `Build-Android.ps1` para configuração local. Caches, ferramentas, chaves privadas e saídas de compilação não são versionados. Preserve sua chave de assinatura para atualizar o APK.
-
-## Validação
-
-```powershell
 dotnet run --project tests/ProtocolTests.csproj -c Release
-./dist/windows/DropLocal.exe --verify-startup
-./dist/windows/DropLocal.exe --verify-navigation dist/ui-check
 ```
 
-Os testes cobrem autenticação, aceitação/recusa, cancelamento, desconexão, pareamento, arquivos binários, Unicode e vazios. O teste integrado verifica uma única janela, preservação das abas e transferência em loopback. O usuário confirmou fisicamente o QR na 0.4.1 e todos os recursos da 0.5. A 0.5.1 adiciona autoria e empacotamento; o guia distingue verificações automatizadas de testes físicos.
+Windows usa WinForms e runtime Desktop privado 10.0.12. O apphost nativo do SDK procura o runtime em runtime/, sem launcher intermediário ou console. Android usa Java, JDK 17, Gradle 8.11.1 e SDK/Build Tools 35, mínimo Android 8. Preserve sua chave de assinatura para atualizar instalações existentes. Ferramentas, caches, binários gerados e chaves privadas não são versionados.
 
-Histórico da correção do QR: [QR 0.4.1](docs/historico/QR-0.4.1.md).
+A descoberta usa multicast IPv4 UDP 45834; recepção TCP 45833 no Windows e 45832 no Android. Redes com isolamento ou bloqueio de multicast podem impedir comunicação. O transporte atual não usa TLS; use uma rede de confiança. Consulte o guia para limites e ciclo de vida Android.
 
+O protótipo de instalação 0.8.1 foi bloqueado após detecção comportamental e substituído pelo MSI 0.8.2. [Registro do incidente](INCIDENTE-DESINSTALADOR-0.8.1.md). Os scans e testes desta versão passaram com o Kaspersky ativo; isso descreve a validação realizada, sem garantia para todos os ambientes.
