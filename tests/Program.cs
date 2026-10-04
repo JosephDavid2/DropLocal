@@ -80,3 +80,6 @@ try {
     Console.WriteLine("PASS interrupted Windows receive cleanup and subsequent transfer");
     cancelReceiver.Cancel();try{await receiving;}catch(OperationCanceledException){}
 } finally { if(!receiveRoot.StartsWith(Path.GetTempPath(),StringComparison.OrdinalIgnoreCase))throw new Exception("Unexpected cleanup path");Directory.Delete(receiveRoot,true); }
+await SessionChecks.Run();
+await NearbyChecks.Run();
+if(args.Length==2)await JavaInteropChecks.Run(args[0],Path.GetFullPath(args[1]));
