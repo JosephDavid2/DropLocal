@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework><UseWindowsForms>true</UseWindowsForms><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><ApplicationIcon>../assets/drop-local.ico</ApplicationIcon><Version>0.6.0</Version><FileVersion>0.6.0.0</FileVersion></PropertyGroup>
+  <PropertyGroup><OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework><UseWindowsForms>true</UseWindowsForms><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><ApplicationIcon>../assets/drop-local.ico</ApplicationIcon><Version>0.8.1</Version><FileVersion>0.8.1.0</FileVersion></PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="../assets/drop-local.ico" LogicalName="DropLocal.AppIcon" />
     <EmbeddedResource Include="../assets/drop-local-256.png" LogicalName="DropLocal.AppMark" />

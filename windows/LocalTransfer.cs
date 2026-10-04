@@ -6,7 +6,7 @@ using System.Text.Json;
 public static class LocalTransfer
 {
     public static async Task SendAsync(IPAddress ip, string token, IReadOnlyList<string> paths,
-        Action<long,long,string> progress, Action<string> state, CancellationToken ct, int port = 45832, int version = 1)
+        Action<long,long,string> progress, Action<string> state, CancellationToken ct, int port = 45832, int version = 1, string? senderName = null)
     {
         if (paths.Count == 0 || paths.Count > 1000) throw new IOException("Selecione de 1 a 1000 arquivos por envio.");
         var opened = new List<FileStream>();
@@ -17,7 +17,7 @@ public static class LocalTransfer
             using var client = new TcpClient();
             state("Conectando…"); await client.ConnectAsync(ip, port, ct);
             using var stream = client.GetStream();
-            var metadata = JsonSerializer.SerializeToUtf8Bytes(new { version, token, files = paths.Select((p,i) => new { name = Path.GetFileName(p), size = opened[i].Length }) });
+            var metadata = JsonSerializer.SerializeToUtf8Bytes(new { version, token, senderName=senderName??Environment.MachineName, senderKind="windows", files = paths.Select((p,i) => new { name = Path.GetFileName(p), size = opened[i].Length }) });
             if (metadata.Length >= 1048576) throw new IOException("Pedido muito grande.");
             await stream.WriteAsync(metadata, ct); await stream.WriteAsync(new byte[] { 10 }, ct);
             state("Aguardando aceitação no aparelho…");
