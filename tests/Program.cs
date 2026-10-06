@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 
+if(args.Length==2&&args[0]=="--verify-github-release"){await UpdateChecks.VerifyPublished(Path.GetFullPath(args[1]));return;}
 var temp = Path.Combine(Path.GetTempPath(), "drop-local-tests-" + Guid.NewGuid());
 Directory.CreateDirectory(temp);
 try
@@ -80,6 +81,7 @@ try {
     Console.WriteLine("PASS interrupted Windows receive cleanup and subsequent transfer");
     cancelReceiver.Cancel();try{await receiving;}catch(OperationCanceledException){}
 } finally { if(!receiveRoot.StartsWith(Path.GetTempPath(),StringComparison.OrdinalIgnoreCase))throw new Exception("Unexpected cleanup path");Directory.Delete(receiveRoot,true); }
+await UpdateChecks.Run();
 await SessionChecks.Run();
 await NearbyChecks.Run();
 if(args.Length==2)await JavaInteropChecks.Run(args[0],Path.GetFullPath(args[1]));

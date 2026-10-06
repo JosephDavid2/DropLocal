@@ -1,6 +1,6 @@
 # Drop Local
 
-**by Joseph David** · Windows e Android · versão 0.8.2
+**by Joseph David** · Windows e Android · versão 0.8.3 (preparada localmente)
 
 Abra, veja os aparelhos da mesma rede e envie. No Windows, arraste arquivos para o destinatário ou clique nele para selecionar. No Android, toque no aparelho e escolha os arquivos. O pedido aparece automaticamente no destino: basta aceitar ou recusar. Aplicativos nativos, sem navegador, servidor externo, tutorial ou tour.
 
@@ -10,7 +10,9 @@ Windows usa Downloads/DropLocal e inicia a recepção ao abrir. Android pede a p
 
 ![Tela Windows com aparelhos de demonstração](docs/images/windows-receber.png)
 
-O MSI usa Windows Installer para instalar, atualizar e desinstalar, com runtime privado e atalhos no menu Iniciar. Não inclui desinstalador personalizado. Arquivos recebidos e dados pessoais são preservados. Consulte [guia de uso](USAR-0.8.2.md), [atualização](ATUALIZAR.md) e [validação da versão](VALIDACAO-0.8.2.md).
+O MSI usa Windows Installer para instalar, atualizar e desinstalar, com runtime privado e atalhos no menu Iniciar. Não inclui desinstalador personalizado. Arquivos recebidos e dados pessoais são preservados. Consulte [guia de uso](USAR-0.8.3.md), [atualização](ATUALIZAR.md) e [validação da versão](VALIDACAO-0.8.3.md).
+
+O botão Atualizar consulta releases estáveis no GitHub, baixa e verifica o instalador e abre a confirmação nativa. Para quem usa versões anteriores, instale uma vez a 0.8.3 sobre a atual. Publicar código não substitui publicar MSI e APK na release.
 
 ## Compilar
 

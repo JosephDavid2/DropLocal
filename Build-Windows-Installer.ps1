@@ -1,4 +1,4 @@
-param([string]$DotnetRoot='C:\Program Files\dotnet',[string]$WixPath='', [string]$PackageVersion='0.8.2',[switch]$TestPackage,[string]$TestIdentity='',[string]$PayloadPath='')
+param([string]$DotnetRoot='C:\Program Files\dotnet',[string]$WixPath='', [string]$PackageVersion='0.8.3',[switch]$TestPackage,[string]$TestIdentity='',[string]$PayloadPath='')
 $ErrorActionPreference='Stop'
 $taskRoot=$PSScriptRoot
 $work=Join-Path $taskRoot '.installer-work'
@@ -21,7 +21,7 @@ if(!$PayloadPath){
     }
     Copy-Item -LiteralPath (Join-Path $DotnetRoot 'dotnet.exe') -Destination (Join-Path $payload 'runtime/dotnet.exe')
     foreach($name in @('LICENSE.txt','ThirdPartyNotices.txt')){Copy-Item -LiteralPath (Join-Path $DotnetRoot $name) -Destination (Join-Path $payload "runtime/$name")}
-    Copy-Item -LiteralPath (Join-Path $taskRoot 'USAR-0.8.2.md') -Destination (Join-Path $payload 'LEIA-ME.md')
+    Copy-Item -LiteralPath (Join-Path $taskRoot 'USAR-0.8.3.md') -Destination (Join-Path $payload 'LEIA-ME.md')
 }else{$payload=[IO.Path]::GetFullPath($PayloadPath)}
 $files=@(Get-ChildItem -LiteralPath $payload -File -Recurse | Sort-Object FullName)
 if($files.Name -contains 'Uninstall.exe' -or $files.Name -contains 'Uninstall.ps1'){throw 'Payload contém desinstalador personalizado bloqueado'}
